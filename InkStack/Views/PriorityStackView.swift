@@ -97,6 +97,9 @@ struct PriorityStackView: View {
                                 onToggleCollapsed: {
                                     toggleCollapsed(card)
                                 },
+                                onToggleCompact: {
+                                    toggleCompact(card)
+                                },
                                 onError: show
                             )
                             .id(card.id)
@@ -248,6 +251,16 @@ struct PriorityStackView: View {
         do {
             try withAnimation(.spring(response: 0.42, dampingFraction: 0.84)) {
                 try CardStore(context: modelContext).setCollapsed(card, to: !card.isCollapsed)
+            }
+        } catch {
+            show(error)
+        }
+    }
+
+    private func toggleCompact(_ card: Card) {
+        do {
+            try withAnimation(.spring(response: 0.46, dampingFraction: 0.82)) {
+                try CardStore(context: modelContext).setCompact(card, to: !(card.isCompact ?? false))
             }
         } catch {
             show(error)

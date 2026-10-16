@@ -32,6 +32,8 @@ Use the exact simulator name shown by `xcrun simctl list devices available`.
 
 - Tap **New Card** to put a blank card on the table. Write directly in its paper area or add optional typed text.
 - Tap a handwriting area to make the shared PencilKit palette visible. PencilKit provides pen, marker/highlighter, eraser, color, and undo/redo controls.
+- Double-tap a card title to fold the card into its compact form; double-tap it again to restore the notes section and full **Add Child** label. The choice persists across launches.
+- Typed notes sit below the handwriting area. They grow vertically as you type, then scroll internally after reaching their maximum height.
 - Use **Add Child** to create a nested card. The parent expands automatically.
 - Drag anywhere across a card's top/title strip to place it freely on the table. Tap the displayed title to enter editing mode; press Done or tap away to make the strip draggable again. Moving a parent carries its complete subtree with it while preserving the children's relative arrangement.
 - Dashed connectors show parent/child relationships. Use the chevron/count control to hide or reveal descendants.
@@ -43,7 +45,7 @@ Edits autosave. Drawing changes use a short debounce and flush when the app resi
 
 ## Tests
 
-The `InkStackTests` target covers hierarchy ordering, subtree movement and deletion, legacy position migration, cycle prevention, color persistence, completion isolation, valid PencilKit drawing round-trip, and malformed drawing recovery.
+The `InkStackTests` target covers hierarchy ordering, subtree movement and deletion, legacy position migration, cycle prevention, color and compact-state persistence, completion isolation, valid PencilKit drawing round-trip, and malformed drawing recovery.
 
 The non-UI unit tests can also run on the Mac host without booting a simulator:
 

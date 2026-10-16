@@ -76,6 +76,12 @@ struct CardStore {
         try save()
     }
 
+    func setCompact(_ card: Card, to compact: Bool) throws {
+        card.isCompact = compact
+        card.updatedAt = Date()
+        try save()
+    }
+
     func touchAndSave(_ card: Card) throws {
         card.updatedAt = Date()
         try save()

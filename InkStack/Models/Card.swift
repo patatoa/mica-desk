@@ -11,7 +11,8 @@ final class Card {
     @Attribute(.externalStorage) var drawingData: Data
     var isCollapsed: Bool
     var isCompleted: Bool
-    // Optional so existing stores migrate without requiring a value for old rows.
+    // Optional properties let existing stores migrate without values for old rows.
+    var isCompact: Bool?
     var colorName: String?
     var positionX: Double?
     var positionY: Double?
@@ -27,6 +28,7 @@ final class Card {
         drawingData: Data = Data(),
         isCollapsed: Bool = false,
         isCompleted: Bool = false,
+        isCompact: Bool? = nil,
         colorName: String? = nil,
         positionX: Double? = nil,
         positionY: Double? = nil,
@@ -41,6 +43,7 @@ final class Card {
         self.drawingData = drawingData
         self.isCollapsed = isCollapsed
         self.isCompleted = isCompleted
+        self.isCompact = isCompact
         self.colorName = colorName
         self.positionX = positionX
         self.positionY = positionY

@@ -92,6 +92,19 @@ final class CardHierarchyTests: XCTestCase {
         XCTAssertEqual(restored.title, "Colored card")
     }
 
+    func testCompactCardStatePersistsWithOtherContent() throws {
+        let (container, store) = try makeStore()
+        _ = container
+
+        let card = try store.addCard()
+        XCTAssertNil(card.isCompact)
+
+        try store.setCompact(card, to: true)
+
+        let restored = try XCTUnwrap(store.fetchAll().first)
+        XCTAssertEqual(restored.isCompact, true)
+    }
+
     func testMovingParentMovesEntireSubtreeButNotOtherCards() throws {
         let (container, store) = try makeStore()
         _ = container

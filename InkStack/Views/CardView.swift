@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct CardView: View, Equatable {
     @Environment(\.modelContext) private var modelContext
@@ -8,12 +9,13 @@ struct CardView: View, Equatable {
     let descendantCount: Int
     let renderVersion: Date
     let onToggleCollapsed: () -> Void
+    let onToggleCompact: () -> Void
     let onError: (Error) -> Void
 
-    @FocusState private var focusedField: Field?
-    private enum Field {
-        case body
-    }
+    @State private var notesHeight: CGFloat = Self.minimumNotesHeight
+
+    private static let minimumNotesHeight: CGFloat = 48
+    private static let maximumNotesHeight: CGFloat = 132
 
     static func == (lhs: CardView, rhs: CardView) -> Bool {
         lhs.card.id == rhs.card.id
@@ -60,35 +62,9 @@ struct CardView: View, Equatable {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(card.isCollapsed ? "Expand \(descendantCount) descendants" : "Collapse \(descendantCount) descendants")
                 }
-
-                Image(systemName: "line.3.horizontal")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-                    .accessibilityLabel("Move card")
-                    .accessibilityHint("Drag anywhere across the card header to move it, or drag to the trash target to delete")
             }
             .contentShape(Rectangle())
-
-            ZStack(alignment: .topLeading) {
-                if card.bodyText.isEmpty && focusedField != .body {
-                    Text("Typed notes (optional)")
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 9)
-                        .allowsHitTesting(false)
-                }
-
-                TextEditor(text: $card.bodyText)
-                    .focused($focusedField, equals: .body)
-                    .font(.body)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 3)
-                    .accessibilityLabel("Typed notes")
-            }
-            .frame(minHeight: 42, maxHeight: 72)
-            .background(.black.opacity(0.035), in: RoundedRectangle(cornerRadius: 5))
-            .gesture(blockTablePanGesture)
+            .accessibilityHint("Drag across the header to move this card. Double-tap the title to toggle compact mode.")
 
             CardInkView(
                 drawingData: Binding(
@@ -108,12 +84,36 @@ struct CardView: View, Equatable {
             }
             .accessibilityHint("Write with Apple Pencil. Tap to show drawing tools.")
 
+            if !isCompact {
+                BufferedGrowingNotesEditor(
+                    text: card.bodyText,
+                    height: $notesHeight,
+                    minimumHeight: Self.minimumNotesHeight,
+                    maximumHeight: Self.maximumNotesHeight,
+                    onCommit: commitNotes
+                )
+                .frame(height: notesHeight)
+                .background(.black.opacity(0.035), in: RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .gesture(blockTablePanGesture)
+                .transition(.accordionFold)
+                .animation(.spring(response: 0.38, dampingFraction: 0.84), value: notesHeight)
+            }
+
             HStack {
-                Button("Add Child", systemImage: "plus") {
+                Button {
                     addChild()
+                } label: {
+                    if isCompact {
+                        Image(systemName: "plus")
+                            .font(.title3)
+                    } else {
+                        Label("Add Child", systemImage: "plus")
+                    }
                 }
                 .buttonStyle(.borderless)
-                .frame(minHeight: 44)
+                .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                .accessibilityLabel("Add Child")
 
                 Spacer()
 
@@ -142,12 +142,8 @@ struct CardView: View, Equatable {
                 .strokeBorder(Color.secondary.opacity(card.isCompleted ? 0.07 : 0.13))
         }
         .opacity(card.isCompleted ? 0.68 : 1)
-        .onChange(of: focusedField) { oldValue, newValue in
-            if oldValue != nil && oldValue != newValue {
-                markEdited()
-                saveContext()
-            }
-        }
+        .animation(.spring(response: 0.46, dampingFraction: 0.82), value: isCompact)
+        .accessibilityAction(named: isCompact ? "Expand card" : "Compact card", onToggleCompact)
     }
 
     private func addChild() {
@@ -170,6 +166,10 @@ struct CardView: View, Equatable {
         CardTint(rawValue: card.colorName ?? "") ?? .paper
     }
 
+    private var isCompact: Bool {
+        card.isCompact ?? false
+    }
+
     private func setTint(_ tint: CardTint) {
         card.colorName = tint == .paper ? nil : tint.rawValue
         saveEdits()
@@ -183,6 +183,13 @@ struct CardView: View, Equatable {
     private func commitTitle(_ title: String) {
         guard card.title != title else { return }
         card.title = title
+        markEdited()
+        saveContext()
+    }
+
+    private func commitNotes(_ notes: String) {
+        guard card.bodyText != notes else { return }
+        card.bodyText = notes
         markEdited()
         saveContext()
     }
@@ -264,6 +271,218 @@ private struct BufferedTitleField: UIViewRepresentable {
         func textFieldDidEndEditing(_ textField: UITextField) {
             onCommit(textField.text ?? "")
         }
+    }
+}
+
+/// Keeps keystrokes in UIKit, publishing to SwiftData only after a short pause or
+/// when editing ends. Height changes are much less frequent than text changes, so
+/// the surrounding card can animate without rebuilding on every character.
+private struct BufferedGrowingNotesEditor: UIViewRepresentable {
+    let text: String
+    @Binding var height: CGFloat
+    let minimumHeight: CGFloat
+    let maximumHeight: CGFloat
+    let onCommit: (String) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    func makeUIView(context: Context) -> GrowingNotesTextView {
+        let textView = GrowingNotesTextView()
+        textView.delegate = context.coordinator
+        textView.text = text
+        textView.font = .preferredFont(forTextStyle: .body)
+        textView.adjustsFontForContentSizeCategory = true
+        textView.backgroundColor = .clear
+        textView.textContainerInset = UIEdgeInsets(top: 10, left: 6, bottom: 10, right: 6)
+        textView.textContainer.lineFragmentPadding = 0
+        textView.keyboardDismissMode = .interactive
+        textView.accessibilityLabel = "Typed notes"
+        textView.updatePlaceholder()
+        context.coordinator.textView = textView
+        context.coordinator.lastCommittedText = text
+        context.coordinator.beginObservingLifecycle()
+        context.coordinator.measureSoon()
+        return textView
+    }
+
+    func updateUIView(_ textView: GrowingNotesTextView, context: Context) {
+        context.coordinator.parent = self
+        if !textView.isFirstResponder, textView.text != text {
+            textView.text = text
+            context.coordinator.lastCommittedText = text
+        }
+        textView.updatePlaceholder()
+        context.coordinator.measureSoon()
+    }
+
+    static func dismantleUIView(_ textView: GrowingNotesTextView, coordinator: Coordinator) {
+        coordinator.flush()
+        coordinator.stopObservingLifecycle()
+    }
+
+    @MainActor
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: BufferedGrowingNotesEditor
+        weak var textView: GrowingNotesTextView?
+        var lastCommittedText = ""
+        private var pendingCommit: DispatchWorkItem?
+        private var isMeasuring = false
+
+        init(parent: BufferedGrowingNotesEditor) {
+            self.parent = parent
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            (textView as? GrowingNotesTextView)?.updatePlaceholder()
+            measureSoon()
+            scheduleCommit(textView.text)
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            flush()
+        }
+
+        func beginObservingLifecycle() {
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(flushForLifecycleChange),
+                name: UIApplication.willResignActiveNotification,
+                object: nil
+            )
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(flushForLifecycleChange),
+                name: UIApplication.didEnterBackgroundNotification,
+                object: nil
+            )
+        }
+
+        func stopObservingLifecycle() {
+            NotificationCenter.default.removeObserver(self)
+            pendingCommit?.cancel()
+            pendingCommit = nil
+        }
+
+        func measureSoon() {
+            guard !isMeasuring else { return }
+            isMeasuring = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.isMeasuring = false
+                self.updateHeight()
+            }
+        }
+
+        func flush() {
+            pendingCommit?.cancel()
+            pendingCommit = nil
+            commit(textView?.text ?? lastCommittedText)
+        }
+
+        @objc private func flushForLifecycleChange() {
+            flush()
+        }
+
+        private func updateHeight() {
+            guard let textView, textView.bounds.width > 0 else { return }
+            let measuredHeight = ceil(
+                textView.sizeThatFits(
+                    CGSize(width: textView.bounds.width, height: .greatestFiniteMagnitude)
+                ).height
+            )
+            let targetHeight = min(max(measuredHeight, parent.minimumHeight), parent.maximumHeight)
+            textView.isScrollEnabled = measuredHeight > parent.maximumHeight + 0.5
+
+            guard abs(parent.height - targetHeight) > 0.5 else { return }
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.84)) {
+                parent.height = targetHeight
+            }
+        }
+
+        private func scheduleCommit(_ draft: String) {
+            pendingCommit?.cancel()
+            let work = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.pendingCommit = nil
+                self.commit(draft)
+            }
+            pendingCommit = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
+        }
+
+        private func commit(_ draft: String) {
+            guard draft != lastCommittedText else { return }
+            lastCommittedText = draft
+            parent.onCommit(draft)
+        }
+    }
+}
+
+private final class GrowingNotesTextView: UITextView {
+    private let placeholderLabel = UILabel()
+
+    init() {
+        super.init(frame: .zero, textContainer: nil)
+        placeholderLabel.text = "Typed notes (optional)"
+        placeholderLabel.font = .preferredFont(forTextStyle: .body)
+        placeholderLabel.adjustsFontForContentSizeCategory = true
+        placeholderLabel.textColor = .tertiaryLabel
+        placeholderLabel.isUserInteractionEnabled = false
+        addSubview(placeholderLabel)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let left = textContainerInset.left
+        let top = textContainerInset.top
+        placeholderLabel.frame = CGRect(
+            x: left,
+            y: top,
+            width: max(0, bounds.width - left - textContainerInset.right),
+            height: placeholderLabel.intrinsicContentSize.height
+        )
+    }
+
+    func updatePlaceholder() {
+        placeholderLabel.isHidden = !text.isEmpty
+    }
+}
+
+private struct AccordionFoldModifier: AnimatableModifier {
+    var progress: CGFloat
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(y: max(progress, 0.001), anchor: .top)
+            .rotation3DEffect(
+                .degrees(Double((1 - progress) * -18)),
+                axis: (x: 1, y: 0, z: 0),
+                anchor: .top,
+                perspective: 0.7
+            )
+            .opacity(progress)
+            .clipped()
+            .compositingGroup()
+    }
+}
+
+private extension AnyTransition {
+    static var accordionFold: AnyTransition {
+        .modifier(
+            active: AccordionFoldModifier(progress: 0),
+            identity: AccordionFoldModifier(progress: 1)
+        )
     }
 }
 
