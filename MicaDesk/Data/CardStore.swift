@@ -52,6 +52,7 @@ struct CardStore {
         let card = Card(
             parentID: parentID,
             sortIndex: 0,
+            isCompact: true,
             positionX: position.x,
             positionY: position.y
         )
@@ -165,8 +166,10 @@ struct CardStore {
     static func newCardPosition(in viewport: CGRect, zoom: Double) -> Position {
         let scale = max(zoom, 0.25)
         return Position(
-            x: max(24, (viewport.midX - 200 * scale) / scale),
-            y: max(24, (viewport.minY + 32) / scale)
+            x: max(24, (viewport.minX + 24) / scale),
+            // Compact cards are 362 points tall. Leave room below for the
+            // floating plus/trash controls, and keep the header on short views.
+            y: max(24, max(viewport.minY + 24, viewport.maxY - 96 - 362 * scale) / scale)
         )
     }
 

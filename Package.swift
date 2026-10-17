@@ -2,20 +2,20 @@
 import PackageDescription
 
 // A small host-side test package for the model/store and drawing serializer.
-// The shipping iPad application is built from InkStack.xcodeproj.
+// The shipping iPad application is built from MicaDesk.xcodeproj.
 let package = Package(
-    name: "InkStackCore",
+    name: "MicaDeskCore",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "InkStack", targets: ["InkStack"])
+        .library(name: "MicaDesk", targets: ["MicaDesk"])
     ],
     targets: [
         .target(
-            name: "InkStack",
-            path: "InkStack",
+            name: "MicaDesk",
+            path: "MicaDesk",
             exclude: [
                 "Assets.xcassets",
-                "InkStackApp.swift",
+                "MicaDeskApp.swift",
                 "Views",
                 "Support/PreviewData.swift",
                 "Support/ToolPickerController.swift"
@@ -27,9 +27,9 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "InkStackTests",
-            dependencies: ["InkStack"],
-            path: "InkStackTests"
+            name: "MicaDeskTests",
+            dependencies: ["MicaDesk"],
+            path: "MicaDeskTests"
         )
     ]
 )

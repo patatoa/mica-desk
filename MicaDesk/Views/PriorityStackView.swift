@@ -157,7 +157,7 @@ struct PriorityStackView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                     }
-                    .accessibilityLabel("About InkStack")
+                    .accessibilityLabel("About Mica Desk")
                 }
             }
             .sheet(isPresented: $showingAbout) {
@@ -166,7 +166,7 @@ struct PriorityStackView: View {
                         Image(systemName: "square.and.pencil")
                             .font(.system(size: 44))
                             .foregroundStyle(.tint)
-                        Text("InkStack").font(.title.bold())
+                        Text("Mica Desk").font(.title.bold())
                         Text("Patatoa 2026")
                             .foregroundStyle(.secondary)
                     }

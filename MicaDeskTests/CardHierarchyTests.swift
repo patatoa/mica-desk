@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import InkStack
+@testable import MicaDesk
 
 @MainActor
 final class CardHierarchyTests: XCTestCase {
@@ -97,12 +97,12 @@ final class CardHierarchyTests: XCTestCase {
         _ = container
 
         let card = try store.addCard()
-        XCTAssertNil(card.isCompact)
+        XCTAssertEqual(card.isCompact, true)
 
-        try store.setCompact(card, to: true)
+        try store.setCompact(card, to: false)
 
         let restored = try XCTUnwrap(store.fetchAll().first)
-        XCTAssertEqual(restored.isCompact, true)
+        XCTAssertEqual(restored.isCompact, false)
     }
 
     func testMovingParentMovesEntireSubtreeButNotOtherCards() throws {
@@ -183,8 +183,9 @@ final class CardHierarchyTests: XCTestCase {
         for zoom in [0.25, 0.5, 1.0, 1.5] {
             let position = CardStore.newCardPosition(in: viewport, zoom: zoom)
             let card = try store.addCard(at: position)
-            XCTAssertEqual(card.positionX! * zoom + 200 * zoom, viewport.midX, accuracy: 0.001)
-            XCTAssertEqual(card.positionY! * zoom, viewport.minY + 32, accuracy: 0.001)
+            XCTAssertEqual(card.isCompact, true)
+            XCTAssertEqual(card.positionX! * zoom, viewport.minX + 24, accuracy: 0.001)
+            XCTAssertEqual(card.positionY! * zoom + 362 * zoom, viewport.maxY - 96, accuracy: 0.001)
         }
     }
 

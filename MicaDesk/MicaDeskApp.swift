@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct InkStackApp: App {
+struct MicaDeskApp: App {
     var body: some Scene {
         WindowGroup {
             PriorityStackView()

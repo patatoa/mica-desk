@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		100000000000000000000001 /* InkStackApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* InkStackApp.swift */; };
+		100000000000000000000001 /* MicaDeskApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* MicaDeskApp.swift */; };
 		100000000000000000000002 /* Card.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* Card.swift */; };
 		100000000000000000000003 /* CardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* CardStore.swift */; };
 		100000000000000000000004 /* PriorityStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* PriorityStackView.swift */; };
@@ -28,12 +28,12 @@
 			containerPortal = 400000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 500000000000000000000001;
-			remoteInfo = InkStack;
+			remoteInfo = MicaDesk;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		200000000000000000000001 /* InkStackApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InkStackApp.swift; sourceTree = "<group>"; };
+		200000000000000000000001 /* MicaDeskApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicaDeskApp.swift; sourceTree = "<group>"; };
 		200000000000000000000002 /* Card.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Card.swift; sourceTree = "<group>"; };
 		200000000000000000000003 /* CardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStore.swift; sourceTree = "<group>"; };
 		200000000000000000000004 /* PriorityStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PriorityStackView.swift; sourceTree = "<group>"; };
@@ -46,8 +46,8 @@
 		20000000000000000000000B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		20000000000000000000000C /* CardHierarchyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardHierarchyTests.swift; sourceTree = "<group>"; };
 		20000000000000000000000D /* DrawingPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingPersistenceTests.swift; sourceTree = "<group>"; };
-		20000000000000000000000E /* InkStack.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = InkStack.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		20000000000000000000000F /* InkStackTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InkStackTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		20000000000000000000000E /* MicaDesk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MicaDesk.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		20000000000000000000000F /* MicaDeskTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MicaDeskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,23 +71,23 @@
 		700000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				700000000000000000000002 /* InkStack */,
-				700000000000000000000007 /* InkStackTests */,
+				700000000000000000000002 /* MicaDesk */,
+				700000000000000000000007 /* MicaDeskTests */,
 				700000000000000000000008 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		700000000000000000000002 /* InkStack */ = {
+		700000000000000000000002 /* MicaDesk */ = {
 			isa = PBXGroup;
 			children = (
-				200000000000000000000001 /* InkStackApp.swift */,
+				200000000000000000000001 /* MicaDeskApp.swift */,
 				700000000000000000000003 /* Models */,
 				700000000000000000000004 /* Data */,
 				700000000000000000000005 /* Views */,
 				700000000000000000000006 /* Support */,
 				20000000000000000000000B /* Assets.xcassets */,
 			);
-			path = InkStack;
+			path = MicaDesk;
 			sourceTree = "<group>";
 		};
 		700000000000000000000003 /* Models */ = {
@@ -127,20 +127,20 @@
 			path = Support;
 			sourceTree = "<group>";
 		};
-		700000000000000000000007 /* InkStackTests */ = {
+		700000000000000000000007 /* MicaDeskTests */ = {
 			isa = PBXGroup;
 			children = (
 				20000000000000000000000C /* CardHierarchyTests.swift */,
 				20000000000000000000000D /* DrawingPersistenceTests.swift */,
 			);
-			path = InkStackTests;
+			path = MicaDeskTests;
 			sourceTree = "<group>";
 		};
 		700000000000000000000008 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				20000000000000000000000E /* InkStack.app */,
-				20000000000000000000000F /* InkStackTests.xctest */,
+				20000000000000000000000E /* MicaDesk.app */,
+				20000000000000000000000F /* MicaDeskTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,9 +148,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		500000000000000000000001 /* InkStack */ = {
+		500000000000000000000001 /* MicaDesk */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 800000000000000000000002 /* Build configuration list for PBXNativeTarget "InkStack" */;
+			buildConfigurationList = 800000000000000000000002 /* Build configuration list for PBXNativeTarget "MicaDesk" */;
 			buildPhases = (
 				900000000000000000000001 /* Sources */,
 				600000000000000000000001 /* Frameworks */,
@@ -160,14 +160,14 @@
 			);
 			dependencies = (
 			);
-			name = InkStack;
-			productName = InkStack;
-			productReference = 20000000000000000000000E /* InkStack.app */;
+			name = MicaDesk;
+			productName = MicaDesk;
+			productReference = 20000000000000000000000E /* MicaDesk.app */;
 			productType = "com.apple.product-type.application";
 		};
-		500000000000000000000002 /* InkStackTests */ = {
+		500000000000000000000002 /* MicaDeskTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 800000000000000000000003 /* Build configuration list for PBXNativeTarget "InkStackTests" */;
+			buildConfigurationList = 800000000000000000000003 /* Build configuration list for PBXNativeTarget "MicaDeskTests" */;
 			buildPhases = (
 				900000000000000000000002 /* Sources */,
 				600000000000000000000002 /* Frameworks */,
@@ -178,9 +178,9 @@
 			dependencies = (
 				B00000000000000000000001 /* PBXTargetDependency */,
 			);
-			name = InkStackTests;
-			productName = InkStackTests;
-			productReference = 20000000000000000000000F /* InkStackTests.xctest */;
+			name = MicaDeskTests;
+			productName = MicaDeskTests;
+			productReference = 20000000000000000000000F /* MicaDeskTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -202,7 +202,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 800000000000000000000001 /* Build configuration list for PBXProject "InkStack" */;
+			buildConfigurationList = 800000000000000000000001 /* Build configuration list for PBXProject "MicaDesk" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -215,8 +215,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				500000000000000000000001 /* InkStack */,
-				500000000000000000000002 /* InkStackTests */,
+				500000000000000000000001 /* MicaDesk */,
+				500000000000000000000002 /* MicaDeskTests */,
 			);
 		};
 /* End PBXProject section */
@@ -244,7 +244,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				100000000000000000000001 /* InkStackApp.swift in Sources */,
+				100000000000000000000001 /* MicaDeskApp.swift in Sources */,
 				100000000000000000000002 /* Card.swift in Sources */,
 				100000000000000000000003 /* CardStore.swift in Sources */,
 				100000000000000000000004 /* PriorityStackView.swift in Sources */,
@@ -271,7 +271,7 @@
 /* Begin PBXTargetDependency section */
 		B00000000000000000000001 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 500000000000000000000001 /* InkStack */;
+			target = 500000000000000000000001 /* MicaDesk */;
 			targetProxy = 300000000000000000000001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -321,6 +321,7 @@
 				DEVELOPMENT_TEAM = 5U9Z4SG55X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mica Desk";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = NO;
@@ -348,6 +349,7 @@
 				DEVELOPMENT_TEAM = 5U9Z4SG55X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Mica Desk";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = NO;
@@ -372,13 +374,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.patatoa.InkStackTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.patatoa.MicaDeskTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 2;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InkStack.app/InkStack";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MicaDesk.app/MicaDesk";
 			};
 			name = Debug;
 		};
@@ -389,13 +391,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.patatoa.InkStackTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.patatoa.MicaDeskTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 2;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/InkStack.app/InkStack";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MicaDesk.app/MicaDesk";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -403,7 +405,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		800000000000000000000001 /* Build configuration list for PBXProject "InkStack" */ = {
+		800000000000000000000001 /* Build configuration list for PBXProject "MicaDesk" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C00000000000000000000001 /* Debug */,
@@ -412,7 +414,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		800000000000000000000002 /* Build configuration list for PBXNativeTarget "InkStack" */ = {
+		800000000000000000000002 /* Build configuration list for PBXNativeTarget "MicaDesk" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C00000000000000000000003 /* Debug */,
@@ -421,7 +423,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		800000000000000000000003 /* Build configuration list for PBXNativeTarget "InkStackTests" */ = {
+		800000000000000000000003 /* Build configuration list for PBXNativeTarget "MicaDeskTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C00000000000000000000005 /* Debug */,

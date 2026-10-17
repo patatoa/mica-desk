@@ -1,6 +1,6 @@
-# InkStack
+# Mica Desk
 
-InkStack is a native, local-first iPad table for typed notes and editable Apple Pencil handwriting. Cards can be placed freely, nested to any depth, collapsed, and completed. All content is stored on-device with SwiftData; there is no account, network service, or CloudKit dependency.
+Mica Desk is a native, local-first iPad table for typed notes and editable Apple Pencil handwriting. Cards can be placed freely, nested to any depth, collapsed, and completed. All content is stored on-device with SwiftData; there is no account, network service, or CloudKit dependency.
 
 ## Requirements
 
@@ -10,18 +10,18 @@ InkStack is a native, local-first iPad table for typed notes and editable Apple 
 
 ## Build and run
 
-1. Open `InkStack.xcodeproj` in Xcode.
-2. Select the shared **InkStack** scheme.
+1. Open `MicaDesk.xcodeproj` in Xcode.
+2. Select the shared **MicaDesk** scheme.
 3. For the simulator, select any available iPad simulator and press **Run**.
-4. For a physical iPad, connect and trust the device, select it as the run destination, choose your Apple Developer team under **InkStack target > Signing & Capabilities**, and press **Run**.
+4. For a physical iPad, connect and trust the device, select it as the run destination, choose your Apple Developer team under **MicaDesk target > Signing & Capabilities**, and press **Run**.
 
-The bundle identifier is `com.patatoa.InkStack`. Change it under **Signing & Capabilities** if your developer account requires a unique identifier. No capabilities or entitlements are needed.
+The bundle identifier remains `com.patatoa.InkStack` to preserve the app's existing on-device data during the rename. Change it under **Signing & Capabilities** if your developer account requires a unique identifier. No capabilities or entitlements are needed.
 
 Command-line build and test examples:
 
 ```sh
-xcodebuild -project InkStack.xcodeproj \
-  -scheme InkStack \
+xcodebuild -project MicaDesk.xcodeproj \
+  -scheme MicaDesk \
   -destination 'platform=iOS Simulator,name=iPad Pro 13-inch (M4)' \
   build test
 ```
@@ -30,7 +30,7 @@ Use the exact simulator name shown by `xcrun simctl list devices available`.
 
 ## Using the app
 
-- Tap **New Card** to put a blank card near the top-center of your current view, without moving the table. Write directly in its paper area or add optional typed text.
+- Tap **New Card** to put a compact blank card just above the bottom-left plus button in your current view, without moving the table. Write directly in its paper area or expand it to add optional typed notes. New child cards also start compact.
 - Tap a handwriting area to make the shared PencilKit palette visible. PencilKit provides pen, marker/highlighter, eraser, color, and undo/redo controls.
 - Double-tap a card title to fold the card into its compact form; double-tap it again to restore the notes section and full **Add Child** label. The choice persists across launches.
 - Typed notes sit below the handwriting area. They grow vertically as you type, then scroll internally after reaching their maximum height.
@@ -45,7 +45,7 @@ Edits autosave. Drawing changes use a short debounce and flush when the app resi
 
 ## Tests
 
-The `InkStackTests` target covers hierarchy ordering, subtree movement and deletion, legacy position migration, cycle prevention, color and compact-state persistence, completion isolation, valid PencilKit drawing round-trip, and malformed drawing recovery.
+The `MicaDeskTests` target covers hierarchy ordering, subtree movement and deletion, legacy position migration, cycle prevention, color and compact-state persistence, completion isolation, valid PencilKit drawing round-trip, and malformed drawing recovery.
 
 The non-UI unit tests can also run on the Mac host without booting a simulator:
 
@@ -66,5 +66,5 @@ Simulator or compiler tests cannot validate Apple Pencil latency, palm rejection
 
 ## MVP boundaries
 
-InkStack deliberately has one local table and no accounts, sync, CloudKit, multiple boards, tags, due dates, notifications, OCR, handwriting recognition, collaboration, or drag-to-reparent behavior. Those are possible future enhancements rather than hidden requirements of this build.
+Mica Desk deliberately has one local table and no accounts, sync, CloudKit, multiple boards, tags, due dates, notifications, OCR, handwriting recognition, collaboration, or drag-to-reparent behavior. Those are possible future enhancements rather than hidden requirements of this build.
 

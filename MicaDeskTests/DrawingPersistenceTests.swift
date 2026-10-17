@@ -1,6 +1,6 @@
 import PencilKit
 import XCTest
-@testable import InkStack
+@testable import MicaDesk
 
 final class DrawingPersistenceTests: XCTestCase {
     func testDrawingDataRoundTripPreservesEditableStroke() throws {

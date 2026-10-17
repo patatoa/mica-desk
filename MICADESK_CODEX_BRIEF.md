@@ -1,14 +1,14 @@
-# InkStack — Codex implementation brief
+# Mica Desk — Codex implementation brief
 
 ## Your assignment
 
-Build **InkStack**, a working, native, local-first **iPad app** for managing daily work as a draggable hierarchy of cards with **editable Apple Pencil handwriting**. Treat this as an **implementation task**, not a request for another plan. Create the Xcode project, implement the MVP in iterative milestones, run available builds/tests, and report what works and what requires testing on a physical iPad.
+Build **MicaDesk**, a working, native, local-first **iPad app** for managing daily work as a draggable hierarchy of cards with **editable Apple Pencil handwriting**. Treat this as an **implementation task**, not a request for another plan. Create the Xcode project, implement the MVP in iterative milestones, run available builds/tests, and report what works and what requires testing on a physical iPad.
 
 If this is an existing repository, inspect it first and preserve unrelated work. If it is empty, initialize a suitable project. Make reasonable design decisions without stopping for clarification unless truly blocked. Avoid dependencies and elaborate abstractions that do not directly serve the MVP.
 
 ## Product principle
 
-**Capturing a thought must be faster than organizing it.** The current workflow is a fast, freeform handwritten to-do list. InkStack adds reorderable priorities and nested cards **without imposing fields, labels, due dates, projects, or statuses**. The hierarchy is optional and emerges as the user organizes work.
+**Capturing a thought must be faster than organizing it.** The current workflow is a fast, freeform handwritten to-do list. MicaDesk adds reorderable priorities and nested cards **without imposing fields, labels, due dates, projects, or statuses**. The hierarchy is optional and emerges as the user organizes work.
 
 Think **a handwritten, infinitely nestable priority stack**, not Trello, Jira, or a generic Kanban clone.
 
@@ -20,7 +20,7 @@ Think **a handwritten, infinitely nestable priority stack**, not Trello, Jira, o
 - **Local persistence:** SwiftData. Do not require login, network, CloudKit, or an external service.
 - **Testing:** XCTest and on-device manual test guidance.
 - **Dependencies:** Apple frameworks only for MVP.
-- **Project:** `InkStack.xcodeproj`, with a runnable `InkStack` app scheme. Provide a README with build/run instructions.
+- **Project:** `MicaDesk.xcodeproj`, with a runnable `MicaDesk` app scheme. Provide a README with build/run instructions.
 
 Use currently available Apple APIs and check deployment-target compatibility. Apple docs: `PKCanvasView`, `PKDrawing`, `PKToolPicker`, SwiftData `ModelContainer`, SwiftUI drag-and-drop.
 
@@ -68,8 +68,8 @@ Encapsulate hierarchy/order operations in a small testable service or store rath
 Keep it straightforward (exact filenames can change):
 
 ```
-InkStack/
-  InkStackApp.swift
+MicaDesk/
+  MicaDeskApp.swift
   Models/Card.swift
   Data/CardStore.swift
   Views/PriorityStackView.swift
@@ -77,7 +77,7 @@ InkStack/
   Views/CardInkView.swift
   Views/InkEditorView.swift       # only if a larger editor is useful
   Support/DrawingPersistence.swift
-InkStackTests/
+MicaDeskTests/
   CardHierarchyTests.swift
   DrawingPersistenceTests.swift
 README.md
@@ -149,4 +149,4 @@ Include unit tests for ordering, insertions, deletion strategy, cycle prevention
 
 ## Definition of done
 
-The user can open InkStack on an iPad, immediately scribble a thought onto a card with Apple Pencil, create children, drag cards into priority order, and reopen the app later with **all handwritten notes and hierarchy intact**. **Optimize for that experience above all else.**
+The user can open MicaDesk on an iPad, immediately scribble a thought onto a card with Apple Pencil, create children, drag cards into priority order, and reopen the app later with **all handwritten notes and hierarchy intact**. **Optimize for that experience above all else.**
