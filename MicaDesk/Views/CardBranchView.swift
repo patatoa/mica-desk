@@ -15,6 +15,7 @@ struct CardBranchView: View {
     let onDragCancelled: () -> Void
     let selected: Bool
     let onSelect: () -> Void
+    let onFrameChanged: (CGRect) -> Void
 
     private var descendantCount: Int {
         CardStore(context: modelContext).descendantCount(of: card.id, in: allCards)
@@ -29,7 +30,9 @@ struct CardBranchView: View {
             onDragChanged: onDragChanged,
             onDragEnded: onDragEnded,
             onDragCancelled: onDragCancelled,
-            onSelect: onSelect
+            onSelect: onSelect,
+            selected: selected,
+            onFrameChanged: onFrameChanged
         ) {
             VStack(spacing: -2) {
                 CardView(card: card, descendantCount: descendantCount, selected: selected)
@@ -103,6 +106,8 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
     let onDragEnded: (CGSize, CGPoint) -> Void
     let onDragCancelled: () -> Void
     let onSelect: () -> Void
+    let selected: Bool
+    let onFrameChanged: (CGRect) -> Void
     @ViewBuilder let content: () -> Content
 
     func makeCoordinator() -> Coordinator {
@@ -126,11 +131,17 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
         context.coordinator.onDragEnded = onDragEnded
         context.coordinator.onDragCancelled = onDragCancelled
         context.coordinator.onSelect = onSelect
+        context.coordinator.onFrameChanged = onFrameChanged
+        context.coordinator.setSelected(selected)
         controller.rootView = content()
         context.coordinator.hostView = controller.view
         DispatchQueue.main.async {
             context.coordinator.giveCardPanPriorityOverBoardScroll()
         }
+    }
+
+    static func dismantleUIViewController(_ controller: UIHostingController<Content>, coordinator: Coordinator) {
+        coordinator.setSelected(false)
     }
 
     func sizeThatFits(
@@ -149,12 +160,15 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
         var onDragEnded: (CGSize, CGPoint) -> Void
         var onDragCancelled: () -> Void
         var onSelect: () -> Void
+        var onFrameChanged: (CGRect) -> Void = { _ in }
         weak var hostView: UIView?
         private weak var boardScrollView: UIScrollView?
         private let pan = UIPanGestureRecognizer()
         private let tap = UITapGestureRecognizer()
         private var dragSnapshot: UIView?
         private var dragStartFrame = CGRect.zero
+        private var frameDisplayLink: CADisplayLink?
+        private var lastFrame = CGRect.null
 
         init(
             onDragChanged: @escaping (CGPoint) -> Void,
@@ -186,6 +200,32 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
             hostView = view
             view.addGestureRecognizer(pan)
             view.addGestureRecognizer(tap)
+        }
+
+        func setSelected(_ selected: Bool) {
+            if selected {
+                guard frameDisplayLink == nil else { return }
+                lastFrame = .null
+                let link = CADisplayLink(target: self, selector: #selector(reportFrame))
+                link.add(to: .main, forMode: .common)
+                frameDisplayLink = link
+            } else {
+                frameDisplayLink?.invalidate()
+                frameDisplayLink = nil
+                lastFrame = .null
+            }
+        }
+
+        @objc private func reportFrame() {
+            guard let hostView, let window = hostView.window else { return }
+            // The hosting view also includes collapsed child peeks below the card.
+            // Measure the paper itself after all SwiftUI and scroll transforms.
+            let paper = CGRect(x: 0, y: 0, width: hostView.bounds.width,
+                               height: min(362, hostView.bounds.height))
+            let frame = hostView.convert(paper, to: window)
+            guard frame != lastFrame, !frame.isEmpty else { return }
+            lastFrame = frame
+            onFrameChanged(frame)
         }
 
         func giveCardPanPriorityOverBoardScroll() {

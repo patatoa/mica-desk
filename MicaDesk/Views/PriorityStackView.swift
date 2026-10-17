@@ -9,7 +9,12 @@ struct PriorityStackView: View {
     @State private var errorMessage: String?
     @State private var showingAbout = false
     @State private var selectedID: UUID?
-    @State private var cardFrames: [UUID: CGRect] = [:]
+    @State private var selectedCardFrame: SelectedCardFrame?
+
+    private struct SelectedCardFrame {
+        let id: UUID
+        let frame: CGRect
+    }
     @State private var editingCard: EditingCard?
     @State private var showingColors = false
 
@@ -106,14 +111,13 @@ struct PriorityStackView: View {
                                 },
                                 onDragCancelled: endDrag,
                                 selected: selectedID == card.id,
-                                onSelect: { selectedID = card.id; showingColors = false }
-
+                                onSelect: { selectedID = card.id; showingColors = false },
+                                onFrameChanged: { frame in
+                                    if selectedID == card.id {
+                                        selectedCardFrame = SelectedCardFrame(id: card.id, frame: frame)
+                                    }
+                                }
                             )
-                            .onGeometryChange(for: CGRect.self) { proxy in
-                                proxy.frame(in: .global)
-                            } action: { frame in
-                                cardFrames[card.id] = frame
-                            }
                             .accessibilityAction(named: "Select") { selectedID = card.id }
                             .accessibilityAction(named: "Edit") { selectedID = card.id; editingCard = EditingCard(id: card.id) }
                             .accessibilityAction(named: "Add Child") { addChild(card) }
@@ -132,13 +136,15 @@ struct PriorityStackView: View {
                 }
                 .overlay {
                     GeometryReader { proxy in
-                        if let card = visibleCards.first(where: { $0.id == selectedID }), activeDragID == nil, let selectedFrame = cardFrames[card.id], !selectedFrame.isNull {
-                            let bounds = proxy.frame(in: .global)
-                            let x = min(max(selectedFrame.midX - bounds.minX, 96), max(96, bounds.width - 96))
-                            let above = selectedFrame.minY - bounds.minY - 28
-                            let y = above >= 28 ? above : min(bounds.height - 28, selectedFrame.maxY - bounds.minY + 28)
-                            cardToolbar(card)
-                                .position(x: x, y: max(28, y))
+                        if let card = visibleCards.first(where: { $0.id == selectedID }),
+                           let measured = selectedCardFrame, measured.id == card.id,
+                           activeDragID == nil {
+                            let viewportFrame = proxy.frame(in: .global)
+                            let cardFrame = measured.frame.offsetBy(dx: -viewportFrame.minX, dy: -viewportFrame.minY)
+                            if cardFrame.intersects(CGRect(origin: .zero, size: proxy.size)) {
+                                cardToolbar(card)
+                                    .position(toolbarPosition(for: cardFrame, in: proxy.size))
+                            }
                         }
                     }
                 }
@@ -334,6 +340,36 @@ struct PriorityStackView: View {
         catch { show(error) }
     }
 
+    private func toolbarPosition(for card: CGRect, in viewport: CGSize) -> CGPoint {
+        let size = CGSize(width: 176, height: 44)
+        let gap: CGFloat = 8
+        let margin: CGFloat = 8
+        let candidates = [
+            CGPoint(x: card.midX, y: card.minY - gap - size.height / 2),
+            CGPoint(x: card.midX, y: card.maxY + gap + size.height / 2),
+            CGPoint(x: card.minX - gap - size.width / 2, y: card.midY),
+            CGPoint(x: card.maxX + gap + size.width / 2, y: card.midY)
+        ]
+        func clamp(_ value: CGFloat, extent: CGFloat, limit: CGFloat) -> CGFloat {
+            let minimum = margin + extent / 2
+            let maximum = max(minimum, limit - margin - extent / 2)
+            return min(max(value, minimum), maximum)
+        }
+        let positions = candidates.map { point in
+            CGPoint(x: clamp(point.x, extent: size.width, limit: viewport.width),
+                    y: clamp(point.y, extent: size.height, limit: viewport.height))
+        }
+        func overlap(_ point: CGPoint) -> CGFloat {
+            let frame = CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
+                               width: size.width, height: size.height)
+            let intersection = frame.intersection(card)
+            return intersection.isNull ? 0 : intersection.width * intersection.height
+        }
+        // Prefer above, then below, then either side. If the card fills the
+        // viewport, choose the constrained position with the least overlap.
+        return positions.min { overlap($0) < overlap($1) } ?? .zero
+    }
+
     private func cardToolbar(_ card: Card) -> some View {
         HStack(spacing: 0) {
             Button { editingCard = EditingCard(id: card.id) } label: { Image(systemName: "pencil") }
@@ -493,7 +529,8 @@ struct PriorityStackView: View {
     }
 }
 
-/// Scroll tracking must not invalidate every card on each pan frame.
+/// The toolbar observes the viewport without storing scroll frames for every card.
+@Observable
 private final class TableViewport {
     var rect = CGRect.zero
 }
