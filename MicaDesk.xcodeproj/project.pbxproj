@@ -20,6 +20,7 @@
 		10000000000000000000000B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000B /* Assets.xcassets */; };
 		10000000000000000000000C /* CardHierarchyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000C /* CardHierarchyTests.swift */; };
 		10000000000000000000000D /* DrawingPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20000000000000000000000D /* DrawingPersistenceTests.swift */; };
+		100000000000000000000010 /* DragSpring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000010 /* DragSpring.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,7 @@
 		20000000000000000000000D /* DrawingPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingPersistenceTests.swift; sourceTree = "<group>"; };
 		20000000000000000000000E /* MicaDesk.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MicaDesk.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		20000000000000000000000F /* MicaDeskTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MicaDeskTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000010 /* DragSpring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragSpring.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +123,7 @@
 			isa = PBXGroup;
 			children = (
 				200000000000000000000008 /* DrawingPersistence.swift */,
+				200000000000000000000010 /* DragSpring.swift */,
 				200000000000000000000009 /* ToolPickerController.swift */,
 				20000000000000000000000A /* PreviewData.swift */,
 			);
@@ -252,6 +255,7 @@
 				100000000000000000000006 /* CardView.swift in Sources */,
 				100000000000000000000007 /* CardInkView.swift in Sources */,
 				100000000000000000000008 /* DrawingPersistence.swift in Sources */,
+				100000000000000000000010 /* DragSpring.swift in Sources */,
 				100000000000000000000009 /* ToolPickerController.swift in Sources */,
 				10000000000000000000000A /* PreviewData.swift in Sources */,
 			);

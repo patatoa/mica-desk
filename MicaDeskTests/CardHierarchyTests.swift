@@ -271,6 +271,76 @@ final class CardHierarchyTests: XCTestCase {
         XCTAssertEqual(other.positionY, otherPosition.y)
     }
 
+    func testDragSpringCascadesAndSettlesWithoutChangingStoredPositions() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let parent = try store.addCard()
+        let child = try store.addCard(parentID: parent.id)
+        let grandchild = try store.addCard(parentID: child.id)
+        let original = [parent, child, grandchild].map { CardStore.Position(x: $0.positionX!, y: $0.positionY!) }
+        var spring = DragSpring(rootID: parent.id, nodes: [
+            .init(id: child.id, parentID: parent.id),
+            .init(id: grandchild.id, parentID: child.id)
+        ])
+        spring.rootOffset = CGPoint(x: 60, y: -20)
+        spring.step(1.0 / 60.0)
+        XCTAssertGreaterThan(spring.nodes[0].offset.x, spring.nodes[1].offset.x)
+        XCTAssertLessThan(spring.nodes[0].offset.x, spring.rootOffset.x)
+        for _ in 0..<90 { spring.step(1.0 / 60.0) }
+        XCTAssertEqual(spring.nodes[0].offset.x, 60, accuracy: 0.01)
+        XCTAssertEqual(spring.nodes[1].offset.x, 60, accuracy: 0.01)
+        XCTAssertEqual([parent, child, grandchild].map { CardStore.Position(x: $0.positionX!, y: $0.positionY!) }, original)
+    }
+
+    func testDragSpringBoundsLagAndReduceMotionFollowsExactly() {
+        let root = UUID(), child = UUID(), grandchild = UUID()
+        var spring = DragSpring(rootID: root, nodes: [
+            .init(id: child, parentID: root), .init(id: grandchild, parentID: child)
+        ])
+        spring.rootOffset = CGPoint(x: 1000, y: 1000)
+        spring.step(1.0 / 60.0)
+        for node in spring.nodes {
+            XCTAssertLessThanOrEqual(hypot(node.offset.x - 1000, node.offset.y - 1000), 80.001)
+        }
+        spring.reduceMotion = true
+        spring.rootOffset = CGPoint(x: -40, y: 20)
+        spring.step(0)
+        XCTAssertTrue(spring.nodes.allSatisfy { $0.offset == spring.rootOffset && $0.velocity == .zero })
+    }
+
+    func testSpringRespondsToRapidReversalAndSettles() {
+        let root = UUID(), child = UUID()
+        var spring = DragSpring(rootID: root, nodes: [.init(id: child, parentID: root)])
+        spring.rootOffset = CGPoint(x: 70, y: 0)
+        for _ in 0..<5 { spring.step(1.0 / 60.0) }
+        let before = spring.nodes[0].offset.x
+        spring.rootOffset = CGPoint(x: -60, y: 0)
+        for _ in 0..<12 { spring.step(1.0 / 60.0) }
+        XCTAssertLessThan(spring.nodes[0].offset.x, before)
+        for _ in 0..<90 { spring.step(1.0 / 60.0) }
+        XCTAssertEqual(spring.nodes[0].offset.x, -60, accuracy: 0.01)
+    }
+
+    func testMovingChildLeavesAncestorsAndSiblingsInPlace() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let parent = try store.addCard()
+        let child = try store.addCard(parentID: parent.id)
+        let sibling = try store.addCard(parentID: parent.id)
+        let grandchild = try store.addCard(parentID: child.id)
+        let parentPosition = CardStore.Position(x: parent.positionX!, y: parent.positionY!)
+        let siblingPosition = CardStore.Position(x: sibling.positionX!, y: sibling.positionY!)
+        let childPosition = CardStore.Position(x: child.positionX!, y: child.positionY!)
+        let grandchildPosition = CardStore.Position(x: grandchild.positionX!, y: grandchild.positionY!)
+        try store.moveSubtree(rootID: child.id, byX: 50, byY: 30, in: store.fetchAll())
+        XCTAssertEqual(CardStore.Position(x: parent.positionX!, y: parent.positionY!), parentPosition)
+        XCTAssertEqual(CardStore.Position(x: sibling.positionX!, y: sibling.positionY!), siblingPosition)
+        XCTAssertEqual(child.positionX!, childPosition.x + 50)
+        XCTAssertEqual(grandchild.positionX!, grandchildPosition.x + 50)
+        XCTAssertEqual(child.positionY!, childPosition.y + 30)
+        XCTAssertEqual(grandchild.positionY!, grandchildPosition.y + 30)
+    }
+
     private func makeStore() throws -> (ModelContainer, CardStore) {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: Card.self, configurations: configuration)

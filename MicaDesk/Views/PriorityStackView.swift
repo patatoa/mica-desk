@@ -4,6 +4,8 @@ import SwiftUI
 struct PriorityStackView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var cardTransitionNamespace
     @Query private var cards: [Card]
 
     @State private var errorMessage: String?
@@ -24,6 +26,7 @@ struct PriorityStackView: View {
     @State private var pendingDeletion: PendingDeletion?
     @State private var cardsPendingDeletion = Set<UUID>()
     @State private var trashFrame = CGRect.null
+    @State private var dragMotion = DragMotion()
     @State private var activeDragID: UUID?
     @State private var isTrashTargeted = false
     @State private var tableViewport = TableViewport()
@@ -79,7 +82,8 @@ struct PriorityStackView: View {
                         HierarchyConnections(
                             cards: visibleCards,
                             positions: displayedPositions,
-                            zoom: renderedZoom
+                            zoom: renderedZoom,
+                            motion: dragMotion
                         )
 
                         if cards.isEmpty {
@@ -97,35 +101,7 @@ struct PriorityStackView: View {
 
                         ForEach(visibleCards) { card in
                             let position = displayedPositions[card.id] ?? CGPoint(x: 160, y: 100)
-                            CardBranchView(
-                                card: card,
-                                allCards: cards,
-                                position: position,
-                                zoom: renderedZoom,
-                                onDragChanged: { location in
-                                    updateDrag(cardID: card.id, globalLocation: location)
-                                },
-                                onDragEnded: { translation, location in
-                                    finishDrag(cardID: card.id, translation: translation, globalLocation: location)
-                                    endDrag()
-                                },
-                                onDragCancelled: endDrag,
-                                selected: selectedID == card.id,
-                                onSelect: { selectedID = card.id; showingColors = false },
-                                onFrameChanged: { frame in
-                                    if selectedID == card.id {
-                                        selectedCardFrame = SelectedCardFrame(id: card.id, frame: frame)
-                                    }
-                                }
-                            )
-                            .accessibilityAction(named: "Select") { selectedID = card.id }
-                            .accessibilityAction(named: "Edit") { selectedID = card.id; editingCard = EditingCard(id: card.id) }
-                            .accessibilityAction(named: "Add Child") { addChild(card) }
-                            .accessibilityAction(named: "Change Color") { selectedID = card.id; showingColors = true }
-                            .accessibilityAction(named: card.isCompleted ? "Mark incomplete" : "Mark complete") { toggleCompleted(card) }
-                            .accessibilityAction(named: "Delete") { requestDeletion(card.id) }
-                            .id(card.id)
-                            .transition(cardTransition(for: card, from: position))
+                            boardCard(card, position: position)
                         }
                     }
                     .frame(
@@ -144,9 +120,13 @@ struct PriorityStackView: View {
                             if cardFrame.intersects(CGRect(origin: .zero, size: proxy.size)) {
                                 cardToolbar(card)
                                     .position(toolbarPosition(for: cardFrame, in: proxy.size))
+                                    .transition(toolbarTransition)
+                                    .id(card.id)
                             }
                         }
                     }
+                    .animation(reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.18), value: selectedID)
+                    .animation(reduceMotion ? .easeOut(duration: 0.12) : .easeOut(duration: 0.18), value: selectedCardFrame?.id)
                 }
                 .scrollIndicators(.visible)
                 .onScrollGeometryChange(for: CGRect.self) { geometry in
@@ -197,7 +177,12 @@ struct PriorityStackView: View {
             }
             .sheet(item: $editingCard) { item in
                 if let card = cards.first(where: { $0.id == item.id }) {
-                    CardEditor(card: card, onError: show)
+                    if reduceMotion {
+                        CardEditor(card: card, onError: show)
+                    } else {
+                        CardEditor(card: card, onError: show)
+                            .navigationTransition(.zoom(sourceID: item.id, in: cardTransitionNamespace))
+                    }
                 }
             }
             .sheet(isPresented: $showingAbout) {
@@ -289,6 +274,8 @@ struct PriorityStackView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
+                dragMotion.finishImmediately()
+                endDrag()
                 do {
                     try CardStore(context: modelContext).save()
                 } catch {
@@ -296,6 +283,56 @@ struct PriorityStackView: View {
                 }
             }
         }
+    }
+
+    private func boardCard(_ card: Card, position: CGPoint) -> some View {
+        CardBranchView(
+            card: card,
+            allCards: cards,
+            position: position,
+            zoom: renderedZoom,
+            onDragChanged: { location, translation in
+                if activeDragID != card.id {
+                    dragMotion.begin(root: card.id, cards: visibleCards, reduceMotion: reduceMotion)
+                }
+                updateDrag(cardID: card.id, globalLocation: location)
+                dragMotion.move(translation)
+            },
+            onDragEnded: { translation, location, restoreSnapshot in
+                if trashFrame.contains(location) {
+                    dragMotion.finishImmediately()
+                    finishDrag(cardID: card.id, translation: translation, globalLocation: location)
+                    endDrag()
+                    restoreSnapshot()
+                } else {
+                    dragMotion.settle(cancelled: false) {
+                        finishDrag(cardID: card.id, translation: translation, globalLocation: location)
+                        endDrag()
+                        restoreSnapshot()
+                    }
+                }
+            },
+            onDragCancelled: { restoreSnapshot in
+                dragMotion.settle(cancelled: true) { endDrag(); restoreSnapshot() }
+            },
+            selected: selectedID == card.id,
+            onSelect: { selectedID = card.id; showingColors = false },
+            onFrameChanged: { frame in
+                if selectedID == card.id {
+                    selectedCardFrame = SelectedCardFrame(id: card.id, frame: frame)
+                }
+            },
+            motion: dragMotion
+        )
+        .matchedTransitionSource(id: card.id, in: cardTransitionNamespace)
+        .accessibilityAction(named: "Select") { selectedID = card.id }
+        .accessibilityAction(named: "Edit") { selectedID = card.id; editingCard = EditingCard(id: card.id) }
+        .accessibilityAction(named: "Add Child") { addChild(card) }
+        .accessibilityAction(named: "Change Color") { selectedID = card.id; showingColors = true }
+        .accessibilityAction(named: card.isCompleted ? "Mark incomplete" : "Mark complete") { toggleCompleted(card) }
+        .accessibilityAction(named: "Delete") { requestDeletion(card.id) }
+        .id(card.id)
+        .transition(cardTransition(for: card, from: position))
     }
 
     private func isVisible(_ card: Card) -> Bool {
@@ -338,6 +375,12 @@ struct PriorityStackView: View {
     private func toggleCompleted(_ card: Card) {
         do { try CardStore(context: modelContext).setCompleted(card, to: !card.isCompleted) }
         catch { show(error) }
+    }
+
+    private var toolbarTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        return .opacity.combined(with: .scale(scale: 0.94, anchor: .bottom))
+            .combined(with: .offset(y: 8))
     }
 
     private func toolbarPosition(for card: CGRect, in viewport: CGSize) -> CGPoint {
@@ -555,24 +598,27 @@ private struct TableGrid: View {
     }
 }
 
-private struct HierarchyConnections: View {
+private struct HierarchyConnections: UIViewRepresentable {
     let cards: [Card]
     let positions: [UUID: CGPoint]
     let zoom: Double
+    let motion: DragMotion
 
-    var body: some View {
-        Canvas { context, _ in
-            for card in cards {
-                guard let parentID = card.parentID,
-                      let parent = positions[parentID],
-                      let child = positions[card.id] else { continue }
-                var path = Path()
-                path.move(to: CGPoint(x: (parent.x + 200) * zoom, y: (parent.y + 175) * zoom))
-                path.addLine(to: CGPoint(x: (child.x + 200) * zoom, y: (child.y + 24) * zoom))
-                context.stroke(path, with: .color(.secondary.opacity(0.28)), style: StrokeStyle(lineWidth: 2, dash: [6, 6]))
-            }
+    func makeUIView(context: Context) -> DragConnectionsView {
+        let view = DragConnectionsView()
+        motion.connections = view
+        return view
+    }
+
+    func updateUIView(_ view: DragConnectionsView, context: Context) {
+        motion.connections = view
+        view.edges = cards.compactMap { card in
+            guard let parent = card.parentID, positions[parent] != nil else { return nil }
+            return (parent: parent, child: card.id)
         }
-        .allowsHitTesting(false)
+        view.positions = positions
+        view.zoom = zoom
+        view.setNeedsDisplay()
     }
 }
 
@@ -657,9 +703,13 @@ private struct CardEditor: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var card: Card
     let onError: (Error) -> Void
     @State private var side: Side = .front
+    @State private var flipAngle = 0.0
+    @State private var isFlipping = false
+    @State private var flipTask: Task<Void, Never>?
     @FocusState private var focusedField: Field?
 
     private var tint: CardTint { CardTint(rawValue: card.colorName ?? "") ?? .paper }
@@ -750,26 +800,51 @@ private struct CardEditor: View {
 
             HStack {
                 Spacer()
-                Button {
-                    focusedField = nil
-                    save()
-                    side = side == .front ? .notes : .front
-                } label: {
+                Button(action: flip) {
                     Label(side == .front ? "Flip to Notes" : "Flip to Front", systemImage: "rectangle.portrait.rotate")
                         .frame(minHeight: 44)
                 }
                 .buttonStyle(.bordered)
+                .disabled(isFlipping)
             }
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(tint.backgroundColor)
+        .rotation3DEffect(.degrees(flipAngle), axis: (x: 0, y: 1, z: 0), perspective: 0.7)
         .presentationBackground(tint.backgroundColor)
         .onChange(of: card.title) { _, _ in save() }
         .onChange(of: card.bodyText) { _, _ in save() }
         .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
-        .onDisappear { save() }
+        .onDisappear { flipTask?.cancel(); save() }
+    }
+
+    private func flip() {
+        guard !isFlipping else { return }
+        focusedField = nil
+        save()
+        if reduceMotion {
+            side = side == .front ? .notes : .front
+            return
+        }
+        isFlipping = true
+        withAnimation(.easeIn(duration: 0.15)) { flipAngle = 90 }
+        flipTask = Task { @MainActor in
+            do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                side = side == .front ? .notes : .front
+                flipAngle = -90
+            }
+            // Give the opposite, edge-on face a rendered frame before revealing it.
+            do { try await Task.sleep(for: .milliseconds(16)) } catch { return }
+            withAnimation(.easeOut(duration: 0.15)) { flipAngle = 0 }
+            do { try await Task.sleep(for: .milliseconds(150)) } catch { return }
+            isFlipping = false
+            flipTask = nil
+        }
     }
 
     private func save() {

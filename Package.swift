@@ -23,7 +23,8 @@ let package = Package(
             sources: [
                 "Models/Card.swift",
                 "Data/CardStore.swift",
-                "Support/DrawingPersistence.swift"
+                "Support/DrawingPersistence.swift",
+                "Support/DragSpring.swift"
             ]
         ),
         .testTarget(
