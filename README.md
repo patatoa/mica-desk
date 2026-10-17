@@ -68,3 +68,12 @@ Simulator or compiler tests cannot validate Apple Pencil latency, palm rejection
 
 Mica Desk deliberately has one local table and no accounts, sync, CloudKit, multiple boards, tags, due dates, notifications, OCR, handwriting recognition, collaboration, or drag-to-reparent behavior. Those are possible future enhancements rather than hidden requirements of this build.
 
+## License
+
+Mica Desk is source-available software licensed under the [PolyForm Strict License 1.0.0](LICENSE.md).
+
+The source code is publicly available for personal study and noncommercial use.
+
+Modification, redistribution, commercial use, and creation of derivative works are not permitted without explicit permission from the copyright holder.
+
+Copyright © 2026 patatoa.
