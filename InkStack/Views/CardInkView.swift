@@ -19,6 +19,7 @@ struct CardInkView: UIViewRepresentable {
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
         canvas.accessibilityLabel = "Handwriting canvas"
+        ToolPickerController.shared.register(canvas)
 
         let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.activateTools))
         tap.cancelsTouchesInView = false
@@ -79,6 +80,10 @@ struct CardInkView: UIViewRepresentable {
         }
 
         func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
+            ToolPickerController.shared.activate(for: canvasView)
+        }
+
+        func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
             ToolPickerController.shared.activate(for: canvasView)
         }
 

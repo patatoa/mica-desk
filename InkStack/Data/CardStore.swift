@@ -36,7 +36,7 @@ struct CardStore {
     }
 
     @discardableResult
-    func addCard(parentID: UUID? = nil) throws -> Card {
+    func addCard(parentID: UUID? = nil, at requestedPosition: Position? = nil) throws -> Card {
         let all = try fetchAll()
         if let parentID, !all.contains(where: { $0.id == parentID }) {
             throw StoreError.invalidParent
@@ -48,7 +48,7 @@ struct CardStore {
             sibling.sortIndex = index + 1
         }
 
-        let position = insertionPosition(parentID: parentID, siblings: siblings, allCards: all)
+        let position = requestedPosition ?? insertionPosition(parentID: parentID, siblings: siblings, allCards: all)
         let card = Card(
             parentID: parentID,
             sortIndex: 0,
@@ -132,12 +132,42 @@ struct CardStore {
             throw StoreError.cardNotFound
         }
         let ids = descendantIDs(of: rootID, in: cards).union([rootID])
-        for card in cards where ids.contains(card.id) {
-            card.positionX = (card.positionX ?? 0) + deltaX
-            card.positionY = (card.positionY ?? 0) + deltaY
+        let subtree = cards.filter { ids.contains($0.id) }
+        let safeDeltaX = max(deltaX, 24 - (subtree.compactMap(\.positionX).min() ?? 24))
+        let safeDeltaY = max(deltaY, 24 - (subtree.compactMap(\.positionY).min() ?? 24))
+        for card in subtree {
+            card.positionX = (card.positionX ?? 0) + safeDeltaX
+            card.positionY = (card.positionY ?? 0) + safeDeltaY
         }
         root.updatedAt = Date()
         try save()
+    }
+
+    /// Recover cards placed beyond the old table origin, preserving each tree's layout.
+    func recoverOffTableCards() throws {
+        let all = try fetchAll()
+        let allIDs = Set(all.map(\.id))
+        for root in all where root.parentID == nil || !allIDs.contains(root.parentID!) {
+            let ids = descendantIDs(of: root.id, in: all).union([root.id])
+            let subtree = all.filter { ids.contains($0.id) }
+            let shiftX = max(0, 24 - (subtree.compactMap(\.positionX).min() ?? 24))
+            let shiftY = max(0, 24 - (subtree.compactMap(\.positionY).min() ?? 24))
+            guard shiftX > 0 || shiftY > 0 else { continue }
+            for card in subtree {
+                card.positionX = (card.positionX ?? 24) + shiftX
+                card.positionY = (card.positionY ?? 24) + shiftY
+            }
+        }
+        try save()
+    }
+
+    /// The viewport is in rendered scroll-content points; card positions are unscaled.
+    static func newCardPosition(in viewport: CGRect, zoom: Double) -> Position {
+        let scale = max(zoom, 0.25)
+        return Position(
+            x: max(24, (viewport.midX - 200 * scale) / scale),
+            y: max(24, (viewport.minY + 32) / scale)
+        )
     }
 
     func move(_ movingID: UUID, before targetID: UUID) throws {

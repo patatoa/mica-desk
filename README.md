@@ -30,7 +30,7 @@ Use the exact simulator name shown by `xcrun simctl list devices available`.
 
 ## Using the app
 
-- Tap **New Card** to put a blank card on the table. Write directly in its paper area or add optional typed text.
+- Tap **New Card** to put a blank card near the top-center of your current view, without moving the table. Write directly in its paper area or add optional typed text.
 - Tap a handwriting area to make the shared PencilKit palette visible. PencilKit provides pen, marker/highlighter, eraser, color, and undo/redo controls.
 - Double-tap a card title to fold the card into its compact form; double-tap it again to restore the notes section and full **Add Child** label. The choice persists across launches.
 - Typed notes sit below the handwriting area. They grow vertically as you type, then scroll internally after reaching their maximum height.
@@ -38,7 +38,7 @@ Use the exact simulator name shown by `xcrun simctl list devices available`.
 - Drag anywhere across a card's top/title strip to place it freely on the table. Tap the displayed title to enter editing mode; press Done or tap away to make the strip draggable again. Moving a parent carries its complete subtree with it while preserving the children's relative arrangement.
 - Dashed connectors show parent/child relationships. Use the chevron/count control to hide or reveal descendants.
 - Use the card's color dot to choose paper, blue, green, yellow, pink, or gray. The PencilKit drawing surface matches the card color.
-- Pan the table with one finger starting on empty table space; dragging on a card never pans the board. Use the toolbar magnifiers or a live two-finger pinch to zoom between 62.5% and 150%.
+- Pan the table with one finger starting on empty table space; dragging on a card never pans the board. Use the toolbar magnifiers or a live two-finger pinch to zoom between 25% and 150%. Cards stop at the top and left table edges so their headers remain reachable; older off-table cards are brought back on launch.
 - Drag a card's top strip onto the fixed bottom trash target to delete it. A parent requires confirmation before its entire subtree is removed.
 
 Edits autosave. Drawing changes use a short debounce and flush when the app resigns active or enters the background. Handwriting is persisted as `PKDrawing` data, not a flattened image.

@@ -7,12 +7,13 @@ struct PriorityStackView: View {
     @Query private var cards: [Card]
 
     @State private var errorMessage: String?
+    @State private var showingAbout = false
     @State private var pendingDeletion: PendingDeletion?
     @State private var cardsPendingDeletion = Set<UUID>()
     @State private var trashFrame = CGRect.null
     @State private var activeDragID: UUID?
     @State private var isTrashTargeted = false
-    @State private var newCardScrollRequest: UUID?
+    @State private var tableViewport = TableViewport()
     @GestureState private var liveMagnification = 1.0
     // Keep the original persistence key so existing installs retain their zoom setting.
     @AppStorage("stackZoom") private var boardZoom = 1.0
@@ -50,12 +51,12 @@ struct PriorityStackView: View {
     }
 
     private var renderedZoom: Double {
-        min(max(boardZoom * liveMagnification, 0.625), 1.5)
+        min(max(boardZoom * liveMagnification, 0.25), 1.5)
     }
 
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in
+            GeometryReader { viewport in
                 ScrollView([.horizontal, .vertical]) {
                     ZStack(alignment: .topLeading) {
                         TableGrid(spacing: 40 * renderedZoom)
@@ -107,19 +108,16 @@ struct PriorityStackView: View {
                         }
                     }
                     .frame(
-                        width: boardSize.width * renderedZoom,
-                        height: boardSize.height * renderedZoom,
+                        width: max(viewport.size.width, boardSize.width * renderedZoom),
+                        height: max(viewport.size.height, boardSize.height * renderedZoom),
                         alignment: .topLeading
                     )
                 }
                 .scrollIndicators(.visible)
-                .onChange(of: newCardScrollRequest) { _, cardID in
-                    guard let cardID else { return }
-                    Task { @MainActor in
-                        await Task.yield()
-                        withAnimation { proxy.scrollTo(cardID, anchor: .center) }
-                        newCardScrollRequest = nil
-                    }
+                .onScrollGeometryChange(for: CGRect.self) { geometry in
+                    geometry.visibleRect
+                } action: { _, rect in
+                    tableViewport.rect = rect
                 }
                 .highPriorityGesture(
                     MagnifyGesture(minimumScaleDelta: 0.005)
@@ -134,11 +132,11 @@ struct PriorityStackView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .navigationTitle("Table")
             .toolbar {
-                ToolbarItemGroup(placement: .secondaryAction) {
+                ToolbarItemGroup(placement: .topBarLeading) {
                     Button(action: { setZoom(boardZoom - 0.125) }) {
                         Image(systemName: "minus.magnifyingglass")
                     }
-                    .disabled(boardZoom <= 0.625)
+                    .disabled(boardZoom <= 0.25)
                     .accessibilityLabel("Zoom out table")
 
                     Text("\(Int((renderedZoom * 100).rounded()))%")
@@ -154,12 +152,43 @@ struct PriorityStackView: View {
                 }
 
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: addRootCard) {
-                        Label("New Card", systemImage: "plus")
+                    Button {
+                        showingAbout = true
+                    } label: {
+                        Image(systemName: "ellipsis")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityHint("Adds a blank card to the table")
+                    .accessibilityLabel("About InkStack")
                 }
+            }
+            .sheet(isPresented: $showingAbout) {
+                NavigationStack {
+                    VStack(spacing: 16) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 44))
+                            .foregroundStyle(.tint)
+                        Text("InkStack").font(.title.bold())
+                        Text("Patatoa 2026")
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(32)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { showingAbout = false }
+                        }
+                    }
+                }
+                .presentationDetents([.medium])
+            }
+            .overlay(alignment: .bottomLeading) {
+                Button(action: addRootCard) {
+                    Image(systemName: "plus")
+                        .font(.title2.weight(.semibold))
+                        .frame(width: 52, height: 52)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.circle)
+                .accessibilityLabel("New Card")
+                .padding()
             }
             .overlay(alignment: .bottom) {
                 VStack(spacing: 8) {
@@ -179,6 +208,9 @@ struct PriorityStackView: View {
                             isDragging: activeDragID != nil,
                             isTargeted: isTrashTargeted
                         )
+                        .background {
+                            RaisedTrashTarget(isTargeted: isTrashTargeted)
+                        }
                         .onGeometryChange(for: CGRect.self) { proxy in
                             proxy.frame(in: .global)
                         } action: { frame in
@@ -209,6 +241,7 @@ struct PriorityStackView: View {
         .task {
             do {
                 try CardStore(context: modelContext).assignMissingBoardPositions()
+                try CardStore(context: modelContext).recoverOffTableCards()
             } catch {
                 show(error)
             }
@@ -240,8 +273,8 @@ struct PriorityStackView: View {
 
     private func addRootCard() {
         do {
-            let card = try CardStore(context: modelContext).addCard()
-            newCardScrollRequest = card.id
+            let position = CardStore.newCardPosition(in: tableViewport.rect, zoom: renderedZoom)
+            try CardStore(context: modelContext).addCard(at: position)
         } catch {
             show(error)
         }
@@ -355,7 +388,7 @@ struct PriorityStackView: View {
 
     private func setZoom(_ value: Double) {
         withAnimation(.easeOut(duration: 0.18)) {
-            boardZoom = min(max(value, 0.625), 1.5)
+            boardZoom = min(max(value, 0.25), 1.5)
         }
     }
 
@@ -366,6 +399,11 @@ struct PriorityStackView: View {
             withAnimation { errorMessage = nil }
         }
     }
+}
+
+/// Scroll tracking must not invalidate every card on each pan frame.
+private final class TableViewport {
+    var rect = CGRect.zero
 }
 
 private struct TableGrid: View {
@@ -406,6 +444,44 @@ private struct HierarchyConnections: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// The live drag snapshot lives in the window. Raise a matching trash label into
+/// that same window so the red target remains visible above the dragged paper.
+private struct RaisedTrashTarget: UIViewRepresentable {
+    let isTargeted: Bool
+
+    func makeUIView(context: Context) -> TargetAnchor {
+        TargetAnchor()
+    }
+
+    func updateUIView(_ view: TargetAnchor, context: Context) {
+        view.isTargeted = isTargeted
+        view.setNeedsLayout()
+    }
+
+    static func dismantleUIView(_ view: TargetAnchor, coordinator: ()) {
+        view.raisedView.removeFromSuperview()
+    }
+
+    final class TargetAnchor: UIView {
+        var isTargeted = false
+        let controller = UIHostingController(rootView: TrashDropZone(isDragging: true, isTargeted: true))
+        var raisedView: UIView { controller.view }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            guard isTargeted, let window else {
+                raisedView.removeFromSuperview()
+                return
+            }
+            raisedView.backgroundColor = .clear
+            raisedView.isUserInteractionEnabled = false
+            raisedView.frame = convert(bounds, to: window)
+            window.addSubview(raisedView)
+            window.bringSubviewToFront(raisedView)
+        }
     }
 }
 

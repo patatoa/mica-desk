@@ -176,6 +176,52 @@ final class CardHierarchyTests: XCTestCase {
         XCTAssertEqual(child.sortIndex, 0)
     }
 
+    func testNewCardPlacementTracksScrolledViewportAndZoom() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let viewport = CGRect(x: 800, y: 450, width: 1000, height: 700)
+        for zoom in [0.25, 0.5, 1.0, 1.5] {
+            let position = CardStore.newCardPosition(in: viewport, zoom: zoom)
+            let card = try store.addCard(at: position)
+            XCTAssertEqual(card.positionX! * zoom + 200 * zoom, viewport.midX, accuracy: 0.001)
+            XCTAssertEqual(card.positionY! * zoom, viewport.minY + 32, accuracy: 0.001)
+        }
+    }
+
+    func testDragStopsAtTableEdgeAndPreservesSubtreeOffsets() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let parent = try store.addCard()
+        let child = try store.addCard(parentID: parent.id)
+        let offsetX = child.positionX! - parent.positionX!
+        let offsetY = child.positionY! - parent.positionY!
+        try store.moveSubtree(rootID: parent.id, byX: -10000, byY: -10000, in: store.fetchAll())
+        XCTAssertEqual(parent.positionX, 24)
+        XCTAssertEqual(parent.positionY, 24)
+        XCTAssertEqual(child.positionX! - parent.positionX!, offsetX)
+        XCTAssertEqual(child.positionY! - parent.positionY!, offsetY)
+    }
+
+    func testExistingOffTableCardsAreRecoveredWithoutChangingValidTrees() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let parent = try store.addCard()
+        let child = try store.addCard(parentID: parent.id)
+        let other = try store.addCard()
+        parent.positionX = -80
+        parent.positionY = -160
+        child.positionX = -10
+        child.positionY = 260
+        let otherPosition = CardStore.Position(x: other.positionX!, y: other.positionY!)
+        try store.recoverOffTableCards()
+        XCTAssertEqual(parent.positionX, 24)
+        XCTAssertEqual(parent.positionY, 24)
+        XCTAssertEqual(child.positionX, 94)
+        XCTAssertEqual(child.positionY, 444)
+        XCTAssertEqual(other.positionX, otherPosition.x)
+        XCTAssertEqual(other.positionY, otherPosition.y)
+    }
+
     private func makeStore() throws -> (ModelContainer, CardStore) {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: Card.self, configurations: configuration)
