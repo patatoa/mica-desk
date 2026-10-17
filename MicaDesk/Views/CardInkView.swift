@@ -4,6 +4,7 @@ import SwiftUI
 struct CardInkView: UIViewRepresentable {
     @Binding var drawingData: Data
     var onSaveRequested: () -> Void
+    var isActive = true
 
     func makeCoordinator() -> Coordinator {
         Coordinator(parent: self)
@@ -47,6 +48,13 @@ struct CardInkView: UIViewRepresentable {
     func updateUIView(_ container: InkCanvasContainer, context: Context) {
         let canvas = container.canvas
         context.coordinator.parent = self
+        if !isActive {
+            context.coordinator.flush()
+            ToolPickerController.shared.deactivate(canvas)
+            canvas.resignFirstResponder()
+        } else {
+            ToolPickerController.shared.register(canvas)
+        }
         // `updateUIView` also runs for every board drag frame. Never serialize the
         // PKDrawing here; that made moving one card scale with every visible canvas.
         // The coordinator already records the last drawing it published.
@@ -80,15 +88,15 @@ struct CardInkView: UIViewRepresentable {
         }
 
         func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
-            ToolPickerController.shared.activate(for: canvasView)
+            if parent.isActive { ToolPickerController.shared.activate(for: canvasView) }
         }
 
         func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
-            ToolPickerController.shared.activate(for: canvasView)
+            if parent.isActive { ToolPickerController.shared.activate(for: canvasView) }
         }
 
         @objc func activateTools() {
-            guard let canvas else { return }
+            guard parent.isActive, let canvas else { return }
             ToolPickerController.shared.activate(for: canvas)
         }
 
@@ -173,8 +181,8 @@ final class InkCanvasContainer: UIView {
             canvas.bottomAnchor.constraint(equalTo: bottomAnchor),
             toolsButton.topAnchor.constraint(equalTo: topAnchor, constant: 6),
             toolsButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            toolsButton.widthAnchor.constraint(equalToConstant: 32),
-            toolsButton.heightAnchor.constraint(equalToConstant: 32)
+            toolsButton.widthAnchor.constraint(equalToConstant: 44),
+            toolsButton.heightAnchor.constraint(equalToConstant: 44)
         ])
     }
 

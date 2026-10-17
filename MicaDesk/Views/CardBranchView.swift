@@ -13,9 +13,8 @@ struct CardBranchView: View {
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGSize, CGPoint) -> Void
     let onDragCancelled: () -> Void
-    let onToggleCollapsed: () -> Void
-    let onToggleCompact: () -> Void
-    let onError: (Error) -> Void
+    let selected: Bool
+    let onSelect: () -> Void
 
     private var descendantCount: Int {
         CardStore(context: modelContext).descendantCount(of: card.id, in: allCards)
@@ -30,18 +29,10 @@ struct CardBranchView: View {
             onDragChanged: onDragChanged,
             onDragEnded: onDragEnded,
             onDragCancelled: onDragCancelled,
-            onDoubleTap: onToggleCompact
+            onSelect: onSelect
         ) {
             VStack(spacing: -2) {
-                CardView(
-                    card: card,
-                    descendantCount: descendantCount,
-                    renderVersion: card.updatedAt,
-                    onToggleCollapsed: onToggleCollapsed,
-                    onToggleCompact: onToggleCompact,
-                    onError: onError
-                )
-                .equatable()
+                CardView(card: card, descendantCount: descendantCount, selected: selected)
                 .zIndex(1)
 
                 if card.isCollapsed, !directChildren.isEmpty {
@@ -111,7 +102,7 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
     let onDragChanged: (CGPoint) -> Void
     let onDragEnded: (CGSize, CGPoint) -> Void
     let onDragCancelled: () -> Void
-    let onDoubleTap: () -> Void
+    let onSelect: () -> Void
     @ViewBuilder let content: () -> Content
 
     func makeCoordinator() -> Coordinator {
@@ -119,7 +110,7 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
             onDragChanged: onDragChanged,
             onDragEnded: onDragEnded,
             onDragCancelled: onDragCancelled,
-            onDoubleTap: onDoubleTap
+            onSelect: onSelect
         )
     }
 
@@ -134,7 +125,7 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
         context.coordinator.onDragChanged = onDragChanged
         context.coordinator.onDragEnded = onDragEnded
         context.coordinator.onDragCancelled = onDragCancelled
-        context.coordinator.onDoubleTap = onDoubleTap
+        context.coordinator.onSelect = onSelect
         controller.rootView = content()
         context.coordinator.hostView = controller.view
         DispatchQueue.main.async {
@@ -157,12 +148,11 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
         var onDragChanged: (CGPoint) -> Void
         var onDragEnded: (CGSize, CGPoint) -> Void
         var onDragCancelled: () -> Void
-        var onDoubleTap: () -> Void
+        var onSelect: () -> Void
         weak var hostView: UIView?
         private weak var boardScrollView: UIScrollView?
         private let pan = UIPanGestureRecognizer()
-        private let doubleTap = UITapGestureRecognizer()
-        private let headerHeight: CGFloat = 68
+        private let tap = UITapGestureRecognizer()
         private var dragSnapshot: UIView?
         private var dragStartFrame = CGRect.zero
 
@@ -170,12 +160,12 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
             onDragChanged: @escaping (CGPoint) -> Void,
             onDragEnded: @escaping (CGSize, CGPoint) -> Void,
             onDragCancelled: @escaping () -> Void,
-            onDoubleTap: @escaping () -> Void
+            onSelect: @escaping () -> Void
         ) {
             self.onDragChanged = onDragChanged
             self.onDragEnded = onDragEnded
             self.onDragCancelled = onDragCancelled
-            self.onDoubleTap = onDoubleTap
+            self.onSelect = onSelect
             super.init()
             pan.addTarget(self, action: #selector(handlePan(_:)))
             pan.delegate = self
@@ -184,19 +174,18 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
             pan.cancelsTouchesInView = true
             pan.delaysTouchesBegan = false
 
-            doubleTap.addTarget(self, action: #selector(handleDoubleTap))
-            doubleTap.delegate = self
-            doubleTap.numberOfTapsRequired = 2
-            doubleTap.numberOfTouchesRequired = 1
-            doubleTap.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
-            doubleTap.cancelsTouchesInView = false
-            doubleTap.delaysTouchesBegan = false
+            tap.addTarget(self, action: #selector(handleTap))
+            tap.delegate = self
+            tap.numberOfTapsRequired = 1
+            tap.numberOfTouchesRequired = 1
+            tap.cancelsTouchesInView = false
+            tap.delaysTouchesBegan = false
         }
 
         func install(on view: UIView) {
             hostView = view
             view.addGestureRecognizer(pan)
-            view.addGestureRecognizer(doubleTap)
+            view.addGestureRecognizer(tap)
         }
 
         func giveCardPanPriorityOverBoardScroll() {
@@ -213,44 +202,18 @@ private struct NativeDraggableCard<Content: View>: UIViewControllerRepresentable
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let hostView else { return false }
-            let location = gestureRecognizer.location(in: hostView)
-            if gestureRecognizer === doubleTap {
-                // Use the broad title region while keeping the completion and
-                // descendant controls dedicated to their normal button actions.
-                return location.y <= headerHeight
-                    && location.x >= 56
-                    && location.x <= hostView.bounds.width - 56
-            }
-            return gestureRecognizer === pan && location.y <= headerHeight
+            return hostView != nil && (gestureRecognizer === pan || gestureRecognizer === tap)
         }
 
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            gestureRecognizer === doubleTap || otherGestureRecognizer === doubleTap
+            gestureRecognizer === tap || otherGestureRecognizer === tap
         }
 
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-            guard gestureRecognizer === doubleTap, let hostView else { return true }
-
-            // Buttons keep their native double-tap behavior, and text notes/canvases
-            // keep selection, scrolling, and PencilKit gestures. The title remains a
-            // valid folding surface; editing is ended when the double tap resolves.
-            var view = touch.view
-            while let current = view, current !== hostView {
-                if current is UIButton || current is UITextView || current is UIScrollView {
-                    return false
-                }
-                view = current.superview
-            }
-            return true
-        }
-
-        @objc private func handleDoubleTap() {
-            hostView?.endEditing(true)
-            onDoubleTap()
+        @objc private func handleTap() {
+            onSelect()
         }
 
         @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {

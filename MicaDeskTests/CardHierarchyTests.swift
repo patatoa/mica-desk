@@ -4,6 +4,54 @@ import XCTest
 
 @MainActor
 final class CardHierarchyTests: XCTestCase {
+    func testFaceChoicePreservesOtherCardData() throws {
+        let (container, store) = try makeStore()
+        _ = container
+        let parent = try store.addCard()
+        let card = try store.addCard(parentID: parent.id)
+        card.title = "Title"
+        card.bodyText = "Notes"
+        card.drawingData = Data([1, 2, 3])
+        card.colorName = "blue"
+        card.isCompleted = true
+        let position = (card.positionX, card.positionY)
+        card.compactFace = "title"
+        try store.touchAndSave(card)
+        let restored = try XCTUnwrap(store.fetchAll().first { $0.id == card.id })
+        XCTAssertEqual(restored.compactFace, "title")
+        XCTAssertEqual(restored.title, "Title")
+        XCTAssertEqual(restored.bodyText, "Notes")
+        XCTAssertEqual(restored.drawingData, Data([1, 2, 3]))
+        XCTAssertEqual(restored.colorName, "blue")
+        XCTAssertTrue(restored.isCompleted)
+        XCTAssertEqual(restored.parentID, parent.id)
+        XCTAssertEqual(restored.positionX, position.0)
+        XCTAssertEqual(restored.positionY, position.1)
+    }
+
+    func testNotesAndDeskFacePersistTogetherAcrossContexts() throws {
+        let (container, store) = try makeStore()
+        let card = try store.addCard()
+        card.title = "Context"
+        card.bodyText = "First line\nSecond line"
+        card.drawingData = Data([42, 43, 44])
+        card.compactFace = "drawing"
+        try store.touchAndSave(card)
+
+        let newContext = ModelContext(container)
+        let restored = try XCTUnwrap(newContext.fetch(FetchDescriptor<Card>()).first)
+        XCTAssertEqual(restored.bodyText, "First line\nSecond line")
+        XCTAssertEqual(restored.compactFace, "drawing")
+        restored.compactFace = "title"
+        try newContext.save()
+
+        let reread = try XCTUnwrap(ModelContext(container).fetch(FetchDescriptor<Card>()).first)
+        XCTAssertEqual(reread.compactFace, "title")
+        XCTAssertEqual(reread.title, "Context")
+        XCTAssertEqual(reread.bodyText, "First line\nSecond line")
+        XCTAssertEqual(reread.drawingData, Data([42, 43, 44]))
+    }
+
     func testNewCardsInsertAtTopAndReindexSiblings() throws {
         let (container, store) = try makeStore()
         _ = container

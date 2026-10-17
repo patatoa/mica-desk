@@ -13,6 +13,7 @@ final class Card {
     var isCompleted: Bool
     // Optional properties let existing stores migrate without values for old rows.
     var isCompact: Bool?
+    var compactFace: String?
     var colorName: String?
     var positionX: Double?
     var positionY: Double?

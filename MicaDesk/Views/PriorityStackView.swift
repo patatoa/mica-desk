@@ -8,6 +8,14 @@ struct PriorityStackView: View {
 
     @State private var errorMessage: String?
     @State private var showingAbout = false
+    @State private var selectedID: UUID?
+    @State private var cardFrames: [UUID: CGRect] = [:]
+    @State private var editingCard: EditingCard?
+    @State private var showingColors = false
+
+    private struct EditingCard: Identifiable {
+        let id: UUID
+    }
     @State private var pendingDeletion: PendingDeletion?
     @State private var cardsPendingDeletion = Set<UUID>()
     @State private var trashFrame = CGRect.null
@@ -60,6 +68,8 @@ struct PriorityStackView: View {
                 ScrollView([.horizontal, .vertical]) {
                     ZStack(alignment: .topLeading) {
                         TableGrid(spacing: 40 * renderedZoom)
+                        Color.clear.contentShape(Rectangle())
+                            .onTapGesture { selectedID = nil; showingColors = false }
 
                         HierarchyConnections(
                             cards: visibleCards,
@@ -95,14 +105,21 @@ struct PriorityStackView: View {
                                     endDrag()
                                 },
                                 onDragCancelled: endDrag,
-                                onToggleCollapsed: {
-                                    toggleCollapsed(card)
-                                },
-                                onToggleCompact: {
-                                    toggleCompact(card)
-                                },
-                                onError: show
+                                selected: selectedID == card.id,
+                                onSelect: { selectedID = card.id; showingColors = false }
+
                             )
+                            .onGeometryChange(for: CGRect.self) { proxy in
+                                proxy.frame(in: .global)
+                            } action: { frame in
+                                cardFrames[card.id] = frame
+                            }
+                            .accessibilityAction(named: "Select") { selectedID = card.id }
+                            .accessibilityAction(named: "Edit") { selectedID = card.id; editingCard = EditingCard(id: card.id) }
+                            .accessibilityAction(named: "Add Child") { addChild(card) }
+                            .accessibilityAction(named: "Change Color") { selectedID = card.id; showingColors = true }
+                            .accessibilityAction(named: card.isCompleted ? "Mark incomplete" : "Mark complete") { toggleCompleted(card) }
+                            .accessibilityAction(named: "Delete") { requestDeletion(card.id) }
                             .id(card.id)
                             .transition(cardTransition(for: card, from: position))
                         }
@@ -112,6 +129,18 @@ struct PriorityStackView: View {
                         height: max(viewport.size.height, boardSize.height * renderedZoom),
                         alignment: .topLeading
                     )
+                }
+                .overlay {
+                    GeometryReader { proxy in
+                        if let card = visibleCards.first(where: { $0.id == selectedID }), activeDragID == nil, let selectedFrame = cardFrames[card.id], !selectedFrame.isNull {
+                            let bounds = proxy.frame(in: .global)
+                            let x = min(max(selectedFrame.midX - bounds.minX, 96), max(96, bounds.width - 96))
+                            let above = selectedFrame.minY - bounds.minY - 28
+                            let y = above >= 28 ? above : min(bounds.height - 28, selectedFrame.maxY - bounds.minY + 28)
+                            cardToolbar(card)
+                                .position(x: x, y: max(28, y))
+                        }
+                    }
                 }
                 .scrollIndicators(.visible)
                 .onScrollGeometryChange(for: CGRect.self) { geometry in
@@ -130,7 +159,7 @@ struct PriorityStackView: View {
                 )
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle("Table")
+            .navigationTitle("Desk")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarLeading) {
                     Button(action: { setZoom(boardZoom - 0.125) }) {
@@ -158,6 +187,11 @@ struct PriorityStackView: View {
                         Image(systemName: "ellipsis")
                     }
                     .accessibilityLabel("About Mica Desk")
+                }
+            }
+            .sheet(item: $editingCard) { item in
+                if let card = cards.first(where: { $0.id == item.id }) {
+                    CardEditor(card: card, onError: show)
                 }
             }
             .sheet(isPresented: $showingAbout) {
@@ -238,6 +272,7 @@ struct PriorityStackView: View {
                 Text("This permanently removes the entire subtree. This cannot be undone.")
             }
         }
+        .onDisappear { selectedID = nil; showingColors = false }
         .task {
             do {
                 try CardStore(context: modelContext).assignMissingBoardPositions()
@@ -274,10 +309,64 @@ struct PriorityStackView: View {
     private func addRootCard() {
         do {
             let position = CardStore.newCardPosition(in: tableViewport.rect, zoom: renderedZoom)
-            try CardStore(context: modelContext).addCard(at: position)
+            let card = try CardStore(context: modelContext).addCard(at: position)
+            card.compactFace = "drawing"
+            try CardStore(context: modelContext).save()
+            selectedID = card.id
+            editingCard = EditingCard(id: card.id)
         } catch {
             show(error)
         }
+    }
+
+    private func addChild(_ parent: Card) {
+        do {
+            let child = try CardStore(context: modelContext).addCard(parentID: parent.id)
+            child.compactFace = "drawing"
+            try CardStore(context: modelContext).save()
+            selectedID = child.id
+            editingCard = EditingCard(id: child.id)
+        } catch { show(error) }
+    }
+
+    private func toggleCompleted(_ card: Card) {
+        do { try CardStore(context: modelContext).setCompleted(card, to: !card.isCompleted) }
+        catch { show(error) }
+    }
+
+    private func cardToolbar(_ card: Card) -> some View {
+        HStack(spacing: 0) {
+            Button { editingCard = EditingCard(id: card.id) } label: { Image(systemName: "pencil") }
+                .accessibilityLabel("Edit")
+            Button { addChild(card) } label: { Image(systemName: "plus") }
+                .accessibilityLabel("Add Child")
+            Button { showingColors.toggle() } label: { Image(systemName: "paintpalette") }
+                .accessibilityLabel("Change Color")
+                .popover(isPresented: $showingColors) {
+                    HStack {
+                        ForEach(CardTint.allCases) { tint in
+                            Button {
+                                card.colorName = tint == .paper ? nil : tint.rawValue
+                                do { try CardStore(context: modelContext).touchAndSave(card) } catch { show(error) }
+                                showingColors = false
+                            } label: {
+                                Image(systemName: "circle.fill").foregroundStyle(tint.swatchColor).frame(width: 44, height: 44)
+                            }.accessibilityLabel(tint.title)
+                        }
+                    }.padding().presentationCompactAdaptation(.popover)
+                }
+            Menu {
+                Button(card.isCompleted ? "Mark incomplete" : "Mark complete", systemImage: card.isCompleted ? "circle" : "checkmark.circle") { toggleCompleted(card) }
+                if CardStore(context: modelContext).descendantCount(of: card.id, in: cards) > 0 {
+                    Button(card.isCollapsed ? "Expand children" : "Collapse children", systemImage: card.isCollapsed ? "chevron.down" : "chevron.right") { toggleCollapsed(card) }
+                }
+                Button("Delete", systemImage: "trash", role: .destructive) { requestDeletion(card.id) }
+            } label: { Image(systemName: "ellipsis") }
+                .accessibilityLabel("More")
+        }
+        .buttonStyle(CardToolbarButtonStyle())
+        .background(.regularMaterial, in: Capsule())
+        .shadow(color: .black.opacity(0.18), radius: 6, y: 3)
     }
 
     private func toggleCollapsed(_ card: Card) {
@@ -336,6 +425,8 @@ struct PriorityStackView: View {
 
     private func updateDrag(cardID: UUID, globalLocation: CGPoint) {
         if activeDragID != cardID {
+            selectedID = cardID
+            showingColors = false
             activeDragID = cardID
         }
         let targeted = trashFrame.contains(globalLocation)
@@ -368,6 +459,7 @@ struct PriorityStackView: View {
         let store = CardStore(context: modelContext)
         guard cards.contains(where: { $0.id == cardID }) else { return }
         let deletedIDs = store.descendantIDs(of: cardID, in: cards).union([cardID])
+        if let selectedID, deletedIDs.contains(selectedID) { self.selectedID = nil; showingColors = false }
 
         // SwiftData detaches deleted models immediately. Remove every affected view
         // first so SwiftUI/PencilKit cannot read a lazy drawing fault during teardown.
@@ -512,3 +604,138 @@ private struct TrashDropZone: View {
         .modelContainer(PreviewData.container)
 }
 
+
+
+private struct CardToolbarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.frame(width: 44, height: 44)
+            .contentShape(Rectangle()).opacity(configuration.isPressed ? 0.5 : 1)
+    }
+}
+
+private struct CardEditor: View {
+    private enum Side { case front, notes }
+    private enum Field { case title, notes }
+
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @Bindable var card: Card
+    let onError: (Error) -> Void
+    @State private var side: Side = .front
+    @FocusState private var focusedField: Field?
+
+    private var tint: CardTint { CardTint(rawValue: card.colorName ?? "") ?? .paper }
+    private var face: Binding<String> {
+        Binding(get: {
+            card.compactFace ?? (DrawingPersistence.drawing(from: card.drawingData).strokes.isEmpty ? "title" : "drawing")
+        }, set: { card.compactFace = $0; save() })
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Spacer()
+                Button("Done") { focusedField = nil; save(); dismiss() }
+                    .fontWeight(.semibold)
+                    .frame(minWidth: 64, minHeight: 44)
+                    .accessibilityLabel("Done editing card")
+            }
+
+            Group {
+                if side == .front {
+                    TextField("Title (optional)", text: $card.title)
+                        .textFieldStyle(.plain)
+                        .lineLimit(1)
+                        .focused($focusedField, equals: .title)
+                        .accessibilityLabel("Card title")
+                } else {
+                    Text(card.title.isEmpty ? "Untitled card" : card.title)
+                        .foregroundStyle(card.title.isEmpty ? .secondary : .primary)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .font(.title2.weight(.semibold))
+            .frame(minHeight: 44)
+
+            HStack(spacing: 12) {
+                Text("On desk:").font(.subheadline).foregroundStyle(.secondary)
+                Picker("Show on desk", selection: face) {
+                    Text("Title").tag("title")
+                    Text("Drawing").tag("drawing")
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 280)
+                .accessibilityLabel("Show on desk")
+                Spacer(minLength: 0)
+            }
+            .opacity(side == .front ? 1 : 0)
+            .allowsHitTesting(side == .front)
+            .accessibilityHidden(side != .front)
+
+            ZStack(alignment: .topLeading) {
+                // Keep the same live canvas and undo manager through flips. Its
+                // coordinates are never rescaled or rehydrated on a side change.
+                CardInkView(
+                    drawingData: Binding(get: { card.drawingData }, set: {
+                        card.drawingData = $0
+                        card.updatedAt = Date()
+                    }),
+                    onSaveRequested: save,
+                    isActive: side == .front
+                )
+                .opacity(side == .front ? 1 : 0)
+                .allowsHitTesting(side == .front)
+                .accessibilityHidden(side != .front)
+
+                if side == .notes {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes").font(.headline)
+                        ZStack(alignment: .topLeading) {
+                            if card.bodyText.isEmpty {
+                                Text("Add notes…")
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                            TextEditor(text: $card.bodyText)
+                                .scrollContentBackground(.hidden)
+                                .focused($focusedField, equals: .notes)
+                                .accessibilityLabel("Notes")
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            HStack {
+                Spacer()
+                Button {
+                    focusedField = nil
+                    save()
+                    side = side == .front ? .notes : .front
+                } label: {
+                    Label(side == .front ? "Flip to Notes" : "Flip to Front", systemImage: "rectangle.portrait.rotate")
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(tint.backgroundColor)
+        .presentationBackground(tint.backgroundColor)
+        .onChange(of: card.title) { _, _ in save() }
+        .onChange(of: card.bodyText) { _, _ in save() }
+        .onChange(of: scenePhase) { _, phase in if phase != .active { save() } }
+        .onDisappear { save() }
+    }
+
+    private func save() {
+        do { try CardStore(context: context).touchAndSave(card) } catch { onError(error) }
+    }
+}
